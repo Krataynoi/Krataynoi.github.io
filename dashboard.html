@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temperature and Humidity Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom right, #74b9ff, #a29bfe);
+            color: #2d3436;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+            font-size: 2.5rem;
+            color: #ffffff;
+            text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .current-data {
+            display: flex;
+            justify-content: space-between;
+            background: #ffffff;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 800px;
+        }
+
+        .data-box {
+            flex: 1;
+            margin: 0 10px;
+            padding: 20px;
+            background: #0984e3;
+            color: #ffffff;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .data-box h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .data-box .value {
+            font-size: 5rem;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .chart-container {
+            background: #ffffff;
+            padding: 20px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        .refresh-button {
+            background: #6c5ce7;
+            color: #ffffff;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .refresh-button:hover {
+            background: #a29bfe;
+        }
+
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #dfe6e9;
+        }
+
+        footer a {
+            color: #ffeaa7;
+            text-decoration: none;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <br><br>
+    <h1><i class="fas fa-thermometer-half"></i> เครื่องวัดสภาพอากาศ ห้อง SEM-IT800</h1>
+    <div class="current-data">
+        <!-- <h1>ข้อมูลปัจจุบัน</h1> -->
+
+        <div class="data-box">
+            <h2>อุณหภูมิ</h2>
+            <div class="value" id="temperature">Loading...</div>
+            <div>°C</div>
+        </div>
+        <div class="data-box">
+            <h2>ความชื้น</h2>
+            <div class="value" id="humidity">Loading...</div>
+            <div>%</div>
+        </div>
+
+        <!-- <button class="refresh-button" onclick="fetchData()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button> -->
+    </div>
+
+    <div class="chart-container">
+        <h2>กราฟแสดงข้อมูลย้อนหลัง</h2>
+        <canvas id="dataChart"></canvas>
+    </div>
+    <!-- <footer>
+        Created with ❤️ by <a href="#">YourName</a>
+    </footer> -->
+
+    <script>
+        const apiUrl = "https://api.thingspeak.com/channels/2313698/feeds.json?results=100";
+        const apiKey = "YTQYDOSXR3PDHO10";
+
+        let chart;
+
+        async function fetchData() {
+            try {
+                const response = await fetch(`${apiUrl}&api_key=${apiKey}`);
+                const data = await response.json();
+
+                if (data && data.feeds) {
+                    // Update current temperature and humidity
+                    const feeds = data.feeds;
+                    const lastFeed = feeds[feeds.length - 1];
+                    document.getElementById('temperature').textContent =
+                        lastFeed.field1 ? parseFloat(lastFeed.field1).toFixed(2) : 'N/A';
+                    document.getElementById('humidity').textContent =
+                        lastFeed.field2 ? parseFloat(lastFeed.field2).toFixed(2) : 'N/A';
+
+                    // Update chart
+                    updateChart(feeds);
+                } else {
+                    console.error("No data received");
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        function updateChart(feeds) {
+            const labels = feeds.map(feed => new Date(feed.created_at).toLocaleTimeString());
+            const temperatures = feeds.map(feed => parseFloat(feed.field1));
+            const humidities = feeds.map(feed => parseFloat(feed.field2));
+
+            if (chart) {
+                chart.destroy();
+            }
+
+            const ctx = document.getElementById('dataChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'อุณหภูมิ (°C)',
+                            data: temperatures,
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            fill: true
+                        },
+                        {
+                            label: 'ความชื้น (%)',
+                            data: humidities,
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'เวลา'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'ปริมาณ'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Refresh data every minute
+        setInterval(fetchData, 60000);
+
+        // Fetch initial data
+        fetchData();
+    </script>
+</body>
+
+</html>
